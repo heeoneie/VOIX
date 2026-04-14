@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
         survey_id: body.survey_id,
         answers: body.answers,
         status: body.status ?? "in_progress",
+        ...(body.status === "completed" && { completed_at: new Date().toISOString() }),
       })
       .select()
       .single();
