@@ -8,10 +8,13 @@ interface Props {
 }
 
 export default function KeywordCloud({ keywords }: Props) {
+  if (keywords.length === 0) return null;
+
   const maxFreq = Math.max(...keywords.map((k) => k.frequency));
+  const safeMaxFreq = maxFreq > 0 ? maxFreq : 1;
 
   const getStyle = (freq: number) => {
-    const ratio = freq / maxFreq;
+    const ratio = freq / safeMaxFreq;
     if (ratio > 0.75)
       return "text-base font-bold text-blue-700 bg-blue-100 border-blue-200";
     if (ratio > 0.5)

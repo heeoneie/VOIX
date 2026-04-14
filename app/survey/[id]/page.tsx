@@ -88,7 +88,7 @@ export default function SurveyPage() {
         if (isComplete) {
           // DB에 설문 결과 저장
           const answers = useSurveyStore.getState().answers;
-          await fetch("/api/responses", {
+          const saveRes = await fetch("/api/responses", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -97,6 +97,7 @@ export default function SurveyPage() {
               status: "completed",
             }),
           });
+          if (!saveRes.ok) throw new Error("응답 저장 실패");
           setPhase("completed");
           router.push(`/survey/${surveyId}/complete`);
           return;

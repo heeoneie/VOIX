@@ -15,7 +15,7 @@ interface StatCardProps {
   value: string | number;
   sub?: string;
   color?: string;
-  icon?: string;
+  icon?: keyof typeof ICONS;
 }
 
 export default function StatCard({

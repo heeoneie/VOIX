@@ -21,10 +21,21 @@ const SURVEY_ID = "demo-skincare-001";
 export default async function DashboardPage() {
   const supabase = createClient();
 
-  const { data: insights } = await supabase
+  const { data: insights, error: fetchError } = await supabase
     .from("dashboard_insights")
     .select("*")
     .eq("survey_id", SURVEY_ID);
+
+  if (fetchError) {
+    return (
+      <main className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <p className="text-rose-500">데이터 조회에 실패했습니다.</p>
+          <p className="mt-2 text-sm text-slate-400">{fetchError.message}</p>
+        </div>
+      </main>
+    );
+  }
 
   const overview = insights?.find((i) => i.insight_type === "overview")
     ?.data as OverviewData | undefined;
@@ -41,7 +52,7 @@ export default async function DashboardPage() {
         <div className="text-center">
           <p className="text-slate-500">분석 데이터가 없습니다.</p>
           <p className="mt-2 text-sm text-slate-400">
-            POST /api/analyze 를 호출하여 분석을 실행해주세요.
+            POST /api/analyze (body: {`{"survey_id":"${SURVEY_ID}"}`}) 를 호출하여 분석을 실행해주세요.
           </p>
         </div>
       </main>
@@ -261,7 +272,7 @@ export default async function DashboardPage() {
                       <div
                         className={`h-full rounded-full ${item.cls}`}
                         style={{
-                          width: `${(item.value / item.total) * 100}%`,
+                          width: `${item.total > 0 ? (item.value / item.total) * 100 : 0}%`,
                         }}
                       />
                     </div>

@@ -271,10 +271,12 @@ export async function GET() {
     const supabase = createClient();
 
     // 기존 더미 데이터 삭제 후 재삽입
-    await supabase
+    const { error: deleteError } = await supabase
       .from("survey_responses")
       .delete()
       .eq("survey_id", SURVEY_ID);
+
+    if (deleteError) throw deleteError;
 
     const { data, error } = await supabase
       .from("survey_responses")

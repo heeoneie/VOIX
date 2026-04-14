@@ -30,6 +30,13 @@ export async function POST(request: NextRequest) {
 
     // 2. 응답 텍스트 정리
     const allAnswers = responses.flatMap((r) => r.answers ?? []);
+    if (allAnswers.length === 0) {
+      return NextResponse.json(
+        { error: "분석할 답변 데이터가 없습니다." },
+        { status: 400 }
+      );
+    }
+
     const answersText = allAnswers
       .map(
         (a: { question_index: number; question_text: string; transcript: string }) =>
@@ -139,19 +146,23 @@ ${answersText}
     const voiceData = parseJSON(voiceResult.response.text() ?? "{}");
 
     // 5. 기존 인사이트 삭제 후 저장
-    await supabase
+    const { error: deleteError } = await supabase
       .from("dashboard_insights")
       .delete()
       .eq("survey_id", survey_id);
 
+    if (deleteError) throw deleteError;
+
+    const insightRows = [
+      { survey_id, insight_type: "overview", data: overviewData },
+      { survey_id, insight_type: "sentiment", data: sentimentData },
+      { survey_id, insight_type: "topics", data: topicsData },
+      { survey_id, insight_type: "voice", data: voiceData },
+    ];
+
     const { error: insertError } = await supabase
       .from("dashboard_insights")
-      .insert([
-        { survey_id, insight_type: "overview", data: overviewData },
-        { survey_id, insight_type: "sentiment", data: sentimentData },
-        { survey_id, insight_type: "topics", data: topicsData },
-        { survey_id, insight_type: "voice", data: voiceData },
-      ]);
+      .insert(insightRows);
 
     if (insertError) throw insertError;
 
