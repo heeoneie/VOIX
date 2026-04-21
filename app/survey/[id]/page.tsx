@@ -79,12 +79,25 @@ export default function SurveyPage() {
           body: JSON.stringify({
             currentQuestion: currentQuestion!.text,
             answer: transcript,
+            questionIndex: currentQuestion!.index,
           }),
         });
         if (!genRes.ok) throw new Error("질문 생성 실패");
         const { question: nextQuestionText, isComplete } = await genRes.json();
 
         if (isComplete) {
+          // DB에 설문 결과 저장
+          const answers = useSurveyStore.getState().answers;
+          const saveRes = await fetch("/api/responses", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              survey_id: surveyId,
+              answers,
+              status: "completed",
+            }),
+          });
+          if (!saveRes.ok) throw new Error("응답 저장 실패");
           setPhase("completed");
           router.push(`/survey/${surveyId}/complete`);
           return;
