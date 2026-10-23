@@ -45,6 +45,8 @@ export default async function DashboardPage() {
     ?.data as TopicsData | undefined;
   const voice = insights?.find((i) => i.insight_type === "voice")
     ?.data as VoiceData | undefined;
+  // measured_answers가 없으면 실측 도입 전에 LLM이 추정해 저장한 데이터
+  const hasMeasuredVoice = typeof voice?.measured_answers === "number";
 
   if (!overview) {
     return (
@@ -216,11 +218,15 @@ export default async function DashboardPage() {
             <StatCard
               label="평균 응답 시간"
               value={
-                voice.avg_response_duration_sec != null
+                hasMeasuredVoice && voice.avg_response_duration_sec != null
                   ? `${voice.avg_response_duration_sec}초`
                   : "-"
               }
-              sub={`녹음 기준 · ${voice.measured_answers ?? 0}/${voice.total_answers ?? 0}개 답변`}
+              sub={
+                hasMeasuredVoice
+                  ? `녹음 기준 · ${voice.measured_answers}/${voice.total_answers}개 답변`
+                  : "재분석 필요 (이전 LLM 추정 데이터)"
+              }
               icon="clock"
               color="text-violet-600"
             />
@@ -233,7 +239,11 @@ export default async function DashboardPage() {
             />
             <StatCard
               label="발화 속도"
-              value={voice.chars_per_sec != null ? voice.chars_per_sec : "-"}
+              value={
+                hasMeasuredVoice && voice.chars_per_sec != null
+                  ? voice.chars_per_sec
+                  : "-"
+              }
               sub="글자/초 (녹음 기준)"
               icon="zap"
               color="text-violet-600"

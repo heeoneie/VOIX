@@ -15,6 +15,7 @@ export default function VoiceRecorder({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const startedAtRef = useRef(0);
+  const stoppedAtRef = useRef(0);
   const phase = useSurveyStore((s) => s.phase);
   const setPhase = useSurveyStore((s) => s.setPhase);
   const setError = useSurveyStore((s) => s.setError);
@@ -33,7 +34,8 @@ export default function VoiceRecorder({
       };
 
       mediaRecorder.onstop = () => {
-        const durationSec = (performance.now() - startedAtRef.current) / 1000;
+        // onstop은 정지 후 늦게 호출될 수 있어, 정지 버튼을 누른 시각 기준으로 계산
+        const durationSec = (stoppedAtRef.current - startedAtRef.current) / 1000;
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         stream.getTracks().forEach((track) => track.stop());
         onRecordingComplete(blob, durationSec);
@@ -51,6 +53,7 @@ export default function VoiceRecorder({
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current?.state === "recording") {
+      stoppedAtRef.current = performance.now();
       beginTurn();
       mediaRecorderRef.current.stop();
       setPhase("uploading");

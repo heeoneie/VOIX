@@ -117,7 +117,7 @@ export default function SurveyPage() {
         setCurrentQuestion(nextQuestion);
 
         // 3. TTS
-        setPhase("speaking");
+        // 새 음성이 준비된 뒤에 speaking으로 전환한다. 먼저 전환하면 AudioPlayer가 이전 질문 음성을 다시 재생한다
         const ttsRes = await fetch("/api/tts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -127,6 +127,7 @@ export default function SurveyPage() {
         const ttsBlob = await ttsRes.blob();
         lap("tts", ttsRes);
         setTtsAudioUrl(URL.createObjectURL(ttsBlob));
+        setPhase("speaking");
       } catch (err) {
         cancelTurn();
         setError(err instanceof Error ? err.message : "알 수 없는 오류");
