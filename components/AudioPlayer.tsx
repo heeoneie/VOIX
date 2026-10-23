@@ -6,11 +6,13 @@ import { useSurveyStore } from "@/stores/surveyStore";
 interface AudioPlayerProps {
   audioUrl: string | null;
   onPlaybackEnd: () => void;
+  onPlaybackStart?: () => void;
 }
 
 export default function AudioPlayer({
   audioUrl,
   onPlaybackEnd,
+  onPlaybackStart,
 }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const phase = useSurveyStore((s) => s.phase);
@@ -21,16 +23,18 @@ export default function AudioPlayer({
     const audio = new Audio(audioUrl);
     audioRef.current = audio;
 
+    audio.onplaying = () => onPlaybackStart?.();
     audio.onended = onPlaybackEnd;
     audio.onerror = onPlaybackEnd;
     audio.play().catch(onPlaybackEnd);
 
     return () => {
       audio.pause();
+      audio.onplaying = null;
       audio.onended = null;
       audio.onerror = null;
     };
-  }, [audioUrl, phase, onPlaybackEnd]);
+  }, [audioUrl, phase, onPlaybackEnd, onPlaybackStart]);
 
   return null;
 }

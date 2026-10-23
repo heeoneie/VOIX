@@ -3,6 +3,7 @@
 import { useRef, useCallback } from "react";
 import { Mic, Square } from "lucide-react";
 import { useSurveyStore } from "@/stores/surveyStore";
+import { beginTurn } from "@/lib/latency";
 
 interface VoiceRecorderProps {
   onRecordingComplete: (audioBlob: Blob) => void;
@@ -45,6 +46,7 @@ export default function VoiceRecorder({
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current?.state === "recording") {
+      beginTurn();
       mediaRecorderRef.current.stop();
       setPhase("uploading");
     }

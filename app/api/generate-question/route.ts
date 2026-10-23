@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { geminiModel } from "@/lib/gemini";
+import { ServerTiming } from "@/lib/serverTiming";
 
 const MAX_QUESTIONS = 5;
 
@@ -19,7 +20,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ question: null, isComplete: true });
     }
 
-    const result = await geminiModel.generateContent([
+    const timing = new ServerTiming();
+    const result = await timing.measure("llm", () => geminiModel.generateContent([
       {
         text: `당신은 인터랙티브 설문 진행자입니다.
 사용자의 답변을 바탕으로 자연스럽게 이어지는 후속 질문을 생성하세요.
@@ -32,11 +34,14 @@ export async function POST(request: NextRequest) {
 - 질문은 한 문장으로, 친근한 말투로 작성하세요.
 - 질문만 반환하세요. 다른 텍스트는 포함하지 마세요.`,
       },
-    ]);
+    ]));
 
     const question = result.response.text()?.trim() ?? "";
 
-    return NextResponse.json({ question, isComplete: false });
+    return NextResponse.json(
+      { question, isComplete: false },
+      { headers: { "Server-Timing": timing.log("generate-question") } }
+    );
   } catch (error) {
     console.error("generate-question error:", error);
     return NextResponse.json(

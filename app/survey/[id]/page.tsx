@@ -7,6 +7,7 @@ import AudioPlayer from "@/components/AudioPlayer";
 import QuestionDisplay from "@/components/QuestionDisplay";
 import { useParams, useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
+import { lap, endTurn, cancelTurn } from "@/lib/latency";
 
 export default function SurveyPage() {
   const params = useParams();
@@ -50,6 +51,8 @@ export default function SurveyPage() {
   const handleRecordingComplete = useCallback(
     async (audioBlob: Blob) => {
       try {
+        lap("record_finalize");
+
         // 1. 음성 처리 (STT + Storage 병렬)
         setPhase("transcribing");
         const formData = new FormData();
@@ -62,6 +65,7 @@ export default function SurveyPage() {
         });
         if (!processRes.ok) throw new Error("음성 처리 실패");
         const { transcript, audioUrl } = await processRes.json();
+        lap("process", processRes);
 
         // 응답 저장
         addAnswer({
@@ -84,8 +88,10 @@ export default function SurveyPage() {
         });
         if (!genRes.ok) throw new Error("질문 생성 실패");
         const { question: nextQuestionText, isComplete } = await genRes.json();
+        lap("generate", genRes);
 
         if (isComplete) {
+          cancelTurn();
           // DB에 설문 결과 저장
           const answers = useSurveyStore.getState().answers;
           const saveRes = await fetch("/api/responses", {
@@ -118,8 +124,10 @@ export default function SurveyPage() {
         });
         if (!ttsRes.ok) throw new Error("TTS 실패");
         const ttsBlob = await ttsRes.blob();
+        lap("tts", ttsRes);
         setTtsAudioUrl(URL.createObjectURL(ttsBlob));
       } catch (err) {
+        cancelTurn();
         setError(err instanceof Error ? err.message : "알 수 없는 오류");
       }
     },
@@ -162,7 +170,11 @@ export default function SurveyPage() {
 
       <VoiceRecorder onRecordingComplete={handleRecordingComplete} />
 
-      <AudioPlayer audioUrl={ttsAudioUrl} onPlaybackEnd={handlePlaybackEnd} />
+      <AudioPlayer
+        audioUrl={ttsAudioUrl}
+        onPlaybackEnd={handlePlaybackEnd}
+        onPlaybackStart={endTurn}
+      />
 
       {phase === "error" && (
         <div className="flex flex-col items-center gap-3">

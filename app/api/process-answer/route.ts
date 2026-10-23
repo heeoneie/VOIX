@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { geminiModel } from "@/lib/gemini";
+import { ServerTiming } from "@/lib/serverTiming";
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,27 +20,32 @@ export async function POST(request: NextRequest) {
     const fileName = `${surveyId}/${Date.now()}.webm`;
 
     const supabase = createClient();
+    const timing = new ServerTiming();
 
     // STT와 Storage 업로드를 Promise.all로 병렬 처리
     // → 사용자 응답 대기 시간 최소화를 위한 핵심 최적화
     const [sttResult, uploadResult] = await Promise.all([
       // STT: Gemini로 음성 텍스트 변환
-      geminiModel.generateContent([
-        {
-          inlineData: {
-            mimeType: "audio/webm",
-            data: audioBuffer.toString("base64"),
+      timing.measure("stt", () =>
+        geminiModel.generateContent([
+          {
+            inlineData: {
+              mimeType: "audio/webm",
+              data: audioBuffer.toString("base64"),
+            },
           },
-        },
-        { text: "이 음성을 한국어 텍스트로 정확히 전사해주세요. 텍스트만 반환하세요." },
-      ]),
+          { text: "이 음성을 한국어 텍스트로 정확히 전사해주세요. 텍스트만 반환하세요." },
+        ])
+      ),
       // Storage: Supabase에 음성 파일 업로드
-      supabase.storage
-        .from("voice-recordings")
-        .upload(fileName, audioBuffer, {
-          contentType: "audio/webm",
-          upsert: false,
-        }),
+      timing.measure("upload", async () =>
+        supabase.storage
+          .from("voice-recordings")
+          .upload(fileName, audioBuffer, {
+            contentType: "audio/webm",
+            upsert: false,
+          })
+      ),
     ]);
 
     const transcript =
@@ -53,7 +59,10 @@ export async function POST(request: NextRequest) {
       data: { publicUrl: audioUrl },
     } = supabase.storage.from("voice-recordings").getPublicUrl(fileName);
 
-    return NextResponse.json({ transcript, audioUrl });
+    return NextResponse.json(
+      { transcript, audioUrl },
+      { headers: { "Server-Timing": timing.log("process-answer") } }
+    );
   } catch (error) {
     console.error("process-answer error:", error);
     return NextResponse.json(
