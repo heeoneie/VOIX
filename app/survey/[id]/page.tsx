@@ -49,7 +49,7 @@ export default function SurveyPage() {
 
   // 녹음 완료 → 업로드 + STT → 다음 질문 생성 → TTS
   const handleRecordingComplete = useCallback(
-    async (audioBlob: Blob) => {
+    async (audioBlob: Blob, durationSec: number) => {
       try {
         lap("record_finalize");
 
@@ -73,6 +73,7 @@ export default function SurveyPage() {
           question_text: currentQuestion!.text,
           transcript,
           audio_url: audioUrl,
+          duration_sec: Math.round(durationSec * 10) / 10,
         });
 
         // 2. 다음 질문 생성

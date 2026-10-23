@@ -212,77 +212,32 @@ export default async function DashboardPage() {
       {voice && (
         <section className="mb-10">
           <h2 className="section-title">Voice Insight</h2>
-          <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-3">
             <StatCard
               label="평균 응답 시간"
-              value={`${voice.avg_response_duration_sec}초`}
+              value={
+                voice.avg_response_duration_sec != null
+                  ? `${voice.avg_response_duration_sec}초`
+                  : "-"
+              }
+              sub={`녹음 기준 · ${voice.measured_answers ?? 0}/${voice.total_answers ?? 0}개 답변`}
               icon="clock"
               color="text-violet-600"
             />
             <StatCard
-              label="평균 단어 수"
+              label="평균 어절 수"
               value={voice.avg_words_per_answer}
-              sub="단어/답변"
+              sub="어절/답변"
               icon="hash"
               color="text-violet-600"
             />
             <StatCard
-              label="참여도 점수"
-              value={`${voice.engagement_score}/100`}
+              label="발화 속도"
+              value={voice.chars_per_sec != null ? voice.chars_per_sec : "-"}
+              sub="글자/초 (녹음 기준)"
               icon="zap"
               color="text-violet-600"
             />
-            <div className="dashboard-card">
-              <p className="mb-3 text-sm text-slate-500">응답 자신감 분포</p>
-              <div className="flex flex-col gap-2">
-                {[
-                  {
-                    label: "높음",
-                    value: voice.confidence_distribution.high,
-                    cls: "bg-emerald-500",
-                    total:
-                      voice.confidence_distribution.high +
-                      voice.confidence_distribution.medium +
-                      voice.confidence_distribution.low,
-                  },
-                  {
-                    label: "보통",
-                    value: voice.confidence_distribution.medium,
-                    cls: "bg-amber-400",
-                    total:
-                      voice.confidence_distribution.high +
-                      voice.confidence_distribution.medium +
-                      voice.confidence_distribution.low,
-                  },
-                  {
-                    label: "낮음",
-                    value: voice.confidence_distribution.low,
-                    cls: "bg-rose-400",
-                    total:
-                      voice.confidence_distribution.high +
-                      voice.confidence_distribution.medium +
-                      voice.confidence_distribution.low,
-                  },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-2">
-                    <span className="w-8 text-xs text-slate-500">
-                      {item.label}
-                    </span>
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
-                      <div
-                        className={`h-full rounded-full ${item.cls}`}
-                        style={{
-                          width: `${item.total > 0 ? (item.value / item.total) * 100 : 0}%`,
-                        }}
-                      />
-                    </div>
-                    <span className="w-5 text-right text-xs font-medium text-slate-700">
-                      {item.value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
           <div className="dashboard-card">
             <h3 className="mb-4 text-sm font-medium text-slate-500">

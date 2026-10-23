@@ -6,7 +6,7 @@ import { useSurveyStore } from "@/stores/surveyStore";
 import { beginTurn } from "@/lib/latency";
 
 interface VoiceRecorderProps {
-  onRecordingComplete: (audioBlob: Blob) => void;
+  onRecordingComplete: (audioBlob: Blob, durationSec: number) => void;
 }
 
 export default function VoiceRecorder({
@@ -14,6 +14,7 @@ export default function VoiceRecorder({
 }: VoiceRecorderProps) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const startedAtRef = useRef(0);
   const phase = useSurveyStore((s) => s.phase);
   const setPhase = useSurveyStore((s) => s.setPhase);
   const setError = useSurveyStore((s) => s.setError);
@@ -32,11 +33,15 @@ export default function VoiceRecorder({
       };
 
       mediaRecorder.onstop = () => {
+        const durationSec = (performance.now() - startedAtRef.current) / 1000;
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         stream.getTracks().forEach((track) => track.stop());
-        onRecordingComplete(blob);
+        onRecordingComplete(blob, durationSec);
       };
 
+      mediaRecorder.onstart = () => {
+        startedAtRef.current = performance.now();
+      };
       mediaRecorder.start();
       setPhase("recording");
     } catch {
