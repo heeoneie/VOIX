@@ -18,6 +18,7 @@ export interface Answer {
   question_text: string;
   transcript: string;
   audio_url: string;
+  duration_sec?: number; // 녹음 시작~정지 시간
 }
 
 export interface SurveyResponse {

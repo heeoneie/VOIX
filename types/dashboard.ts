@@ -34,10 +34,12 @@ export interface TopicsData {
   }>;
 }
 
+// 모두 녹음 시간과 전사 텍스트로 계산한 실측값 (lib/voiceMetrics.ts)
 export interface VoiceData {
-  avg_response_duration_sec: number;
-  avg_words_per_answer: number;
-  engagement_score: number;
-  confidence_distribution: { high: number; medium: number; low: number };
+  total_answers: number;
+  measured_answers: number; // 녹음 시간이 기록된 답변 수
+  avg_response_duration_sec: number | null;
+  avg_words_per_answer: number; // 공백 기준 어절 수
+  chars_per_sec: number | null; // 발화 속도 (공백 제외 글자 / 녹음 초)
   completion_funnel: Array<{ question: string; responded: number }>;
 }

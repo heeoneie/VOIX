@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { geminiModel } from "@/lib/gemini";
+import { computeVoiceMetrics } from "@/lib/voiceMetrics";
 
 export async function POST(request: NextRequest) {
   try {
@@ -113,27 +114,8 @@ ${answersText}
       },
     ]);
 
-    const voiceResult = await geminiModel.generateContent([
-      {
-        text: `다음 음성 설문 데이터를 기반으로 음성 인터랙션 관련 인사이트를 생성해주세요.
-각 응답의 텍스트 길이와 상세도를 기반으로 참여도를 추정하세요.
-총 응답자: ${responses.length}명, 질문당 평균 답변 길이: ${Math.round(avgLength)}자
-
-${answersText}
-
-다음 JSON 형식으로만 응답하세요. JSON 외 다른 텍스트는 포함하지 마세요:
-{
-  "avg_response_duration_sec": (추정 평균 응답 시간, 초),
-  "avg_words_per_answer": (평균 단어 수),
-  "engagement_score": (0-100 참여도 점수),
-  "confidence_distribution": { "high": (수), "medium": (수), "low": (수) },
-  "completion_funnel": [
-    { "question": "Q1 질문 요약", "responded": ${responses.length} },
-    { "question": "Q2 질문 요약", "responded": (수) }
-  ]
-}`,
-      },
-    ]);
+    // Voice Insight는 LLM에 추정시키지 않고 녹음 시간과 전사 텍스트로 계산
+    const voiceData = computeVoiceMetrics(responses);
 
     // JSON 파싱 헬퍼
     const parseJSON = (text: string) => {
@@ -143,7 +125,6 @@ ${answersText}
 
     const sentimentData = parseJSON(sentimentResult.response.text() ?? "{}");
     const topicsData = parseJSON(topicsResult.response.text() ?? "{}");
-    const voiceData = parseJSON(voiceResult.response.text() ?? "{}");
 
     // 5. 기존 인사이트 삭제 후 저장
     const { error: deleteError } = await supabase

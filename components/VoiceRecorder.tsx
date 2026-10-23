@@ -3,9 +3,10 @@
 import { useRef, useCallback } from "react";
 import { Mic, Square } from "lucide-react";
 import { useSurveyStore } from "@/stores/surveyStore";
+import { beginTurn } from "@/lib/latency";
 
 interface VoiceRecorderProps {
-  onRecordingComplete: (audioBlob: Blob) => void;
+  onRecordingComplete: (audioBlob: Blob, durationSec: number) => void;
 }
 
 export default function VoiceRecorder({
@@ -13,6 +14,8 @@ export default function VoiceRecorder({
 }: VoiceRecorderProps) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const startedAtRef = useRef(0);
+  const stoppedAtRef = useRef(0);
   const phase = useSurveyStore((s) => s.phase);
   const setPhase = useSurveyStore((s) => s.setPhase);
   const setError = useSurveyStore((s) => s.setError);
@@ -31,11 +34,16 @@ export default function VoiceRecorder({
       };
 
       mediaRecorder.onstop = () => {
+        // onstop은 정지 후 늦게 호출될 수 있어, 정지 버튼을 누른 시각 기준으로 계산
+        const durationSec = (stoppedAtRef.current - startedAtRef.current) / 1000;
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         stream.getTracks().forEach((track) => track.stop());
-        onRecordingComplete(blob);
+        onRecordingComplete(blob, durationSec);
       };
 
+      mediaRecorder.onstart = () => {
+        startedAtRef.current = performance.now();
+      };
       mediaRecorder.start();
       setPhase("recording");
     } catch {
@@ -45,6 +53,8 @@ export default function VoiceRecorder({
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current?.state === "recording") {
+      stoppedAtRef.current = performance.now();
+      beginTurn();
       mediaRecorderRef.current.stop();
       setPhase("uploading");
     }
