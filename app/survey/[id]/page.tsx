@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useSurveyStore } from "@/stores/surveyStore";
 import VoiceRecorder from "@/components/VoiceRecorder";
 import AudioPlayer from "@/components/AudioPlayer";
@@ -27,9 +27,15 @@ export default function SurveyPage() {
   } = useSurveyStore();
 
   const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
+  // 첫 TTS를 기다리는 동안 시작 버튼을 다시 눌러 설문이 두 번 시작되지 않게 한다
+  const startingRef = useRef(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   // 설문 시작
   const handleStart = useCallback(async () => {
+    if (startingRef.current) return;
+    startingRef.current = true;
+    setIsStarting(true);
     const initialQuestion = {
       index: 0,
       text: "안녕하세요! 오늘 하루는 어떠셨나요?",
@@ -47,6 +53,9 @@ export default function SurveyPage() {
       startSurvey(surveyId, initialQuestion);
     } catch {
       setError("TTS 생성에 실패했습니다.");
+    } finally {
+      startingRef.current = false;
+      setIsStarting(false);
     }
   }, [surveyId, startSurvey, setError]);
 
@@ -161,9 +170,10 @@ export default function SurveyPage() {
         </p>
         <button
           onClick={handleStart}
-          className="rounded-xl bg-blue-600 px-8 py-4 text-lg font-medium text-white transition hover:bg-blue-700"
+          disabled={isStarting}
+          className="rounded-xl bg-blue-600 px-8 py-4 text-lg font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          시작하기
+          {isStarting ? "준비 중…" : "시작하기"}
         </button>
       </main>
     );
