@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { textToSpeech } from "@/lib/elevenlabs";
+import { textToSpeech } from "@/lib/ai";
 import { ServerTiming } from "@/lib/serverTiming";
 
 export async function POST(request: NextRequest) {
