@@ -29,22 +29,25 @@ export default function SurveyPage() {
   const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
 
   // 설문 시작
-  const handleStart = useCallback(() => {
+  const handleStart = useCallback(async () => {
     const initialQuestion = {
       index: 0,
       text: "안녕하세요! 오늘 하루는 어떠셨나요?",
     };
-    startSurvey(surveyId, initialQuestion);
 
-    // 첫 질문 TTS
-    fetch("/api/tts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: initialQuestion.text }),
-    })
-      .then((res) => res.blob())
-      .then((blob) => setTtsAudioUrl(URL.createObjectURL(blob)))
-      .catch(() => setError("TTS 생성에 실패했습니다."));
+    // 첫 질문 TTS가 준비된 뒤에 시작한다. 실패하면 복귀 지점이 없어 다시 시도 시 시작 화면으로 돌아간다
+    try {
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: initialQuestion.text }),
+      });
+      if (!res.ok) throw new Error("TTS 실패");
+      setTtsAudioUrl(URL.createObjectURL(await res.blob()));
+      startSurvey(surveyId, initialQuestion);
+    } catch {
+      setError("TTS 생성에 실패했습니다.");
+    }
   }, [surveyId, startSurvey, setError]);
 
   // 녹음 완료 → 업로드 + STT → 다음 질문 생성 → TTS
