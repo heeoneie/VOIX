@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { geminiModel } from "@/lib/gemini";
+import { generateText } from "@/lib/ai";
 import { computeVoiceMetrics } from "@/lib/voiceMetrics";
 
 export async function POST(request: NextRequest) {
@@ -69,10 +69,8 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    // 4. Gemini 분석 (순차 처리 - rate limit 방지)
-    const sentimentResult = await geminiModel.generateContent([
-      {
-        text: `다음은 스킨케어 브랜드의 음성 설문 응답 데이터입니다. 각 응답의 감성을 분석해주세요.
+    // 4. LLM 분석 (순차 처리 - rate limit 방지)
+    const sentimentText = await generateText(`다음은 스킨케어 브랜드의 음성 설문 응답 데이터입니다. 각 응답의 감성을 분석해주세요.
 
 ${answersText}
 
@@ -86,13 +84,9 @@ ${answersText}
   ],
   "key_positive_phrases": ["긍정 표현 5개"],
   "key_negative_phrases": ["부정/아쉬움 표현 5개"]
-}`,
-      },
-    ]);
+}`);
 
-    const topicsResult = await geminiModel.generateContent([
-      {
-        text: `다음 음성 설문 응답에서 핵심 주제와 키워드를 추출해주세요.
+    const topicsText = await generateText(`다음 음성 설문 응답에서 핵심 주제와 키워드를 추출해주세요.
 
 ${answersText}
 
@@ -110,9 +104,7 @@ ${answersText}
     { "word": "키워드", "frequency": (빈도수) }
   ]
 }
-주제는 5-7개, 키워드는 10-15개를 추출하세요.`,
-      },
-    ]);
+주제는 5-7개, 키워드는 10-15개를 추출하세요.`);
 
     // Voice Insight는 LLM에 추정시키지 않고 녹음 시간과 전사 텍스트로 계산
     const voiceData = computeVoiceMetrics(responses);
@@ -123,8 +115,8 @@ ${answersText}
       return JSON.parse(cleaned);
     };
 
-    const sentimentData = parseJSON(sentimentResult.response.text() ?? "{}");
-    const topicsData = parseJSON(topicsResult.response.text() ?? "{}");
+    const sentimentData = parseJSON(sentimentText || "{}");
+    const topicsData = parseJSON(topicsText || "{}");
 
     // 5. 기존 인사이트 삭제 후 저장
     const { error: deleteError } = await supabase

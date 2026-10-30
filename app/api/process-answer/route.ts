@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { geminiModel } from "@/lib/gemini";
+import { transcribe } from "@/lib/ai";
 import { ServerTiming } from "@/lib/serverTiming";
 
 export async function POST(request: NextRequest) {
@@ -24,19 +24,9 @@ export async function POST(request: NextRequest) {
 
     // STT와 Storage 업로드를 Promise.all로 병렬 처리
     // → 사용자 응답 대기 시간 최소화를 위한 핵심 최적화
-    const [sttResult, uploadResult] = await Promise.all([
-      // STT: Gemini로 음성 텍스트 변환
-      timing.measure("stt", () =>
-        geminiModel.generateContent([
-          {
-            inlineData: {
-              mimeType: "audio/webm",
-              data: audioBuffer.toString("base64"),
-            },
-          },
-          { text: "이 음성을 한국어 텍스트로 정확히 전사해주세요. 텍스트만 반환하세요." },
-        ])
-      ),
+    const [transcript, uploadResult] = await Promise.all([
+      // STT: AI_PROVIDER로 고른 공급사로 음성 텍스트 변환
+      timing.measure("stt", () => transcribe(audioBuffer, "audio/webm")),
       // Storage: Supabase에 음성 파일 업로드
       timing.measure("upload", async () =>
         supabase.storage
@@ -47,9 +37,6 @@ export async function POST(request: NextRequest) {
           })
       ),
     ]);
-
-    const transcript =
-      sttResult.response.text()?.trim() ?? "";
 
     if (uploadResult.error) {
       throw new Error(`Storage 업로드 실패: ${uploadResult.error.message}`);
