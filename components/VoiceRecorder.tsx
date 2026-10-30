@@ -23,6 +23,12 @@ export default function VoiceRecorder({
   const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // 권한 대기 중에 단계가 바뀌었으면(예: TTS 오류) 녹음을 시작하지 않고 마이크를 놓는다
+      const current = useSurveyStore.getState().phase;
+      if (current !== "idle" && current !== "speaking") {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: "audio/webm;codecs=opus",
       });

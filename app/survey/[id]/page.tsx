@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useSurveyStore } from "@/stores/surveyStore";
 import VoiceRecorder from "@/components/VoiceRecorder";
 import AudioPlayer from "@/components/AudioPlayer";
@@ -8,6 +8,9 @@ import QuestionDisplay from "@/components/QuestionDisplay";
 import { useParams, useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { lap, endTurn, cancelTurn } from "@/lib/latency";
+
+// 서버 쪽 TTS 제한 시간(lib/elevenlabs.ts)보다 조금 길게 둔다
+const START_TTS_TIMEOUT_MS = 20_000;
 
 export default function SurveyPage() {
   const params = useParams();
@@ -27,24 +30,38 @@ export default function SurveyPage() {
   } = useSurveyStore();
 
   const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
+  // 첫 TTS를 기다리는 동안 시작 버튼을 다시 눌러 설문이 두 번 시작되지 않게 한다
+  const startingRef = useRef(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   // 설문 시작
-  const handleStart = useCallback(() => {
+  const handleStart = useCallback(async () => {
+    if (startingRef.current) return;
+    startingRef.current = true;
+    setIsStarting(true);
     const initialQuestion = {
       index: 0,
       text: "안녕하세요! 오늘 하루는 어떠셨나요?",
     };
-    startSurvey(surveyId, initialQuestion);
 
-    // 첫 질문 TTS
-    fetch("/api/tts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: initialQuestion.text }),
-    })
-      .then((res) => res.blob())
-      .then((blob) => setTtsAudioUrl(URL.createObjectURL(blob)))
-      .catch(() => setError("TTS 생성에 실패했습니다."));
+    // 첫 질문 TTS가 준비된 뒤에 시작한다. 실패하면 복귀 지점이 없어 다시 시도 시 시작 화면으로 돌아간다
+    try {
+      // 응답이 오지 않으면 버튼이 계속 잠기므로, 본문 읽기까지 포함해 제한 시간을 둔다
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: initialQuestion.text }),
+        signal: AbortSignal.timeout(START_TTS_TIMEOUT_MS),
+      });
+      if (!res.ok) throw new Error("TTS 실패");
+      setTtsAudioUrl(URL.createObjectURL(await res.blob()));
+      startSurvey(surveyId, initialQuestion);
+    } catch {
+      setError("TTS 생성에 실패했습니다.");
+    } finally {
+      startingRef.current = false;
+      setIsStarting(false);
+    }
   }, [surveyId, startSurvey, setError]);
 
   // 녹음 완료 → 업로드 + STT → 다음 질문 생성 → TTS
@@ -158,9 +175,10 @@ export default function SurveyPage() {
         </p>
         <button
           onClick={handleStart}
-          className="rounded-xl bg-blue-600 px-8 py-4 text-lg font-medium text-white transition hover:bg-blue-700"
+          disabled={isStarting}
+          className="rounded-xl bg-blue-600 px-8 py-4 text-lg font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          시작하기
+          {isStarting ? "준비 중…" : "시작하기"}
         </button>
       </main>
     );
