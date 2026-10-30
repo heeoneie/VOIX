@@ -9,6 +9,9 @@ import { useParams, useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { lap, endTurn, cancelTurn } from "@/lib/latency";
 
+// 서버 쪽 TTS 제한 시간(lib/elevenlabs.ts)보다 조금 길게 둔다
+const START_TTS_TIMEOUT_MS = 20_000;
+
 export default function SurveyPage() {
   const params = useParams();
   const router = useRouter();
@@ -43,10 +46,12 @@ export default function SurveyPage() {
 
     // 첫 질문 TTS가 준비된 뒤에 시작한다. 실패하면 복귀 지점이 없어 다시 시도 시 시작 화면으로 돌아간다
     try {
+      // 응답이 오지 않으면 버튼이 계속 잠기므로, 본문 읽기까지 포함해 제한 시간을 둔다
       const res = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: initialQuestion.text }),
+        signal: AbortSignal.timeout(START_TTS_TIMEOUT_MS),
       });
       if (!res.ok) throw new Error("TTS 실패");
       setTtsAudioUrl(URL.createObjectURL(await res.blob()));
